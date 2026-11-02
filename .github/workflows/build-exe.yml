@@ -1,0 +1,31 @@
+name: build-exe
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: فك الضغط
+        shell: pwsh
+        run: |
+          $z = Get-ChildItem -Recurse -Filter *.zip | Select-Object -First 1
+          Expand-Archive $z.FullName -DestinationPath work -Force
+          $pkg = Get-ChildItem work -Recurse -Filter package.json | Where-Object { $_.FullName -notmatch 'node_modules' } | Select-Object -First 1
+          "APPDIR=$($pkg.DirectoryName)" >> $env:GITHUB_ENV
+      - name: البناء
+        shell: pwsh
+        run: |
+          cd $env:APPDIR
+          npm install
+          npm run dist
+          New-Item -ItemType Directory -Force -Path $env:GITHUB_WORKSPACE\out
+          Copy-Item dist\*.exe $env:GITHUB_WORKSPACE\out\
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DaftarAlHisabat-exe
+          path: out/*.exe
